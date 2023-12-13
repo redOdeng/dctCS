@@ -1,0 +1,10 @@
+
+    public class GridRow {
+        // public int no { get; set; } = 0;
+        public string code { get; set; } = "-";
+        public string name { get; set; } = "-";
+        public string sect { get; set; } = "-";     // Hold, Gwan, Ref
+
+        public int pYst { get; set; } = 0;
+        public string act { get; set; } = "-";
+    }
