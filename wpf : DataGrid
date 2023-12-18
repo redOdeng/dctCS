@@ -1,23 +1,4 @@
-private void OnGridCellChanged(object sender, EventArgs e) {
-    var currentRowIndex = gwGrid.Items.IndexOf(gwGrid.CurrentItem);
-    if (currentRowIndex < 0) currentRowIndex = 0;
-    tbLog.AppendText($"{currentRowIndex} {gwTable[currentRowIndex].code}\n");
-    gvCurCode = gwTable[currentRowIndex].code;
-
-    plotDay.Plot.Clear();
-    plotDay.Plot.AddSignal(gwDB[gvCurCode]["pcD"].ToArray());
-    plotDay.Refresh();
-
-    plotMin.Plot.Clear();
-    plotMin.Plot.AddSignal(gwDB[gvCurCode]["pcM"].ToArray());
-    plotMin.Refresh();
-}
-
-private void OnLogTextChanged(object sender, TextChangedEventArgs e) {
-    tbLog.ScrollToEnd();
-}
-
-
+// DataGrid Row 속성 class 구성
 public class GridRow {
     // public int no { get; set; } = 0;
     public string code { get; set; } = "-";
@@ -27,3 +8,30 @@ public class GridRow {
     public int pYst { get; set; } = 0;
     public string act { get; set; } = "-";
 }
+
+// DataGrid Table 작성
+List<GridRow> gwTable = new();
+gwTable.Add(new GridRow() { ID=n, Code=code_ });
+
+// Table Binding
+gwGrid.ItemsSource = gwTable;
+
+// Table 변경후 update
+gwGrid.Items.Refresh();   // GUI 전체적 업데이트로 선택셀 포커싱이 없어짐
+
+// 포커싱 없어짐 해결
+gwGrid.SelectedIndex = gv.CurIndex;
+gwGrid.Focus()
+
+// DataGrid Cell 선택 이벤트
+private void OnGridCellChanged(object sender, EventArgs e) {
+    gv.CurIndex = gwGrid.Items.IndexOf(gwGrid.CurrentItem);
+    if (gv.CurIndex < 0) gv.CurIndex = 0;
+    gv.CurCode = gv.GwanCodes[gv.CurIndex];
+}
+
+private void OnLogTextChanged(object sender, TextChangedEventArgs e) {
+    tbLog.ScrollToEnd();
+}
+
+
