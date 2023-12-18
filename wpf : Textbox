@@ -1,1 +1,4 @@
-tbLog.ScrollEnd()
+// 마지막줄로 바뀜
+private void OnLogTextChanged(object sender, TextChangedEventArgs e) {
+    tbLog.ScrollToEnd();
+}
