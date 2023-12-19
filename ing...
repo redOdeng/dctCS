@@ -1,0 +1,270 @@
+
+namespace wDCT_v1a {
+    /// <summary>
+    /// Interaction logic for MainWindow.xaml
+    /// </summary>
+    public partial class MainWindow : System.Windows.Window {
+        roCPA_v2 cp = new();
+        roUtil ro = new();
+
+        Dictionary<string, DB> gwDB = new();  // for Code
+        GV gv = new();
+        
+        List<GridRow> gwTable = new();      // for DataGrid
+
+        public MainWindow() {
+            InitializeComponent();
+            Show();
+
+            //Task.Run(()=>doMyMain());   // for Task
+            var _ = doMyMain();
+        }
+
+        private async Task doMyMain() {
+            await cp.doWaitAtGUI(tbLog, "Time to CPA", "08:00:00");
+            await cp.LoginCPA("jameskyh", "wjdtk2!", "wjdtk2021.");
+            await cp.doWaitAtGUI(tbLog, "Time to preOPEN", "08:30:00");
+            await doGwanInit();
+            await cp.doWaitAtGUI(tbLog, "Time to OPEN", "09:00:00");
+            var taskA = doUpdateTrading();
+
+
+        }
+
+        private async Task doGwanInit() {
+            tbLog.AppendText("> doGwanInit ... \n");
+
+            cp.UpdateAccount();
+            gv.HoldCodes = cp.Holds.Keys.ToList();
+            gv.RefCodes = new List<string>() { "A069500" };
+            gv.CondCodes = cp.GetCondCode("good_prop");
+            gv.GwanCodes = (gv.HoldCodes.Union(gv.RefCodes)).Union(gv.CondCodes).ToList();
+            
+            tbLog.AppendText($"   L {gv.GwanCodes[0]} ~ {gv.GwanCodes[^1]} : n= {gv.GwanCodes.Count} \n");
+
+            gwGrid.ItemsSource = gwTable;
+
+            foreach (string code in gv.GwanCodes) {
+                gwDB[code] = new();
+                var cur = gwDB[code];
+
+                cur.Code = code;
+                cur.Name = cp.GetCodeName(code);
+
+                var df = cp.GetDayChart(code, 200);
+                cur.pcD = df["pc"].ToList().ConvertAll(double.Parse);
+                var pRef = cur.pcD[^40];
+                for (int i = 0; i < 200; i++) cur.pcD[i] /= pRef;
+
+                Console.WriteLine($"   L {code} {df["t"][^1]}");     // test
+
+                cur.Sect = gv.HoldCodes.Contains(code) ? "H" : (gv.CondCodes.Contains(code) ? "G" : "R");
+                cur.pYst = cp.GetCodeYstClose(code);
+                cur.pRef = cur.pYst;
+
+                df = cp.GetMinChart(code, 1, 390);
+                cur.pClose = Convert.ToInt32(df["pc"][^1]);
+                cur.pcM = df["pc"].ToList().ConvertAll(double.Parse);
+                for (int i = 0; i < 390; i++) gwDB[code].pcM[i] /= cur.pRef;
+
+                if (gv.HoldCodes.Contains(code)) {
+                    cur.Qty = cp.Holds[code].Qty;
+                    cur.pBuy = cp.Holds[code].pBuy;
+                    cur.Jmt = cp.Holds[code].Jmt;
+                    cur.pRef = cp.Holds[code].pBuy;
+                    cur.Earn = Math.Round((((double)cur.pClose - cur.pBuy) / cur.pBuy) * 100, 1);
+                }
+
+                gwTable.Add(new GridRow { Code= code, Name= cur.Name, Sect= cur.Sect, Earn= cur.Earn,
+                            pYst= cur.pYst, pClose=cur.pClose, Qty= cur.Qty, pBuy= cur.pBuy, pRef= cur.pRef
+                });
+
+                gwGrid.Items.Refresh();
+            }
+            
+            gv.CurCode = gv.GwanCodes[0];
+
+            tbLog.AppendText("> doGwanInit ... OK. \n");
+            await Task.Delay(0);
+        }
+
+        private async Task doUpdateTrading() {
+            int ONE_SHOT = 100_000;
+
+            var t = "";
+            do {
+                gv.CntClock++;
+                var pcs = cp.GetGwanPrice(gv.GwanCodes);
+                
+                for (int i=0; i < gv.GwanCodes.Count; i++) {
+                    var code = gv.GwanCodes[i];
+                    var cur = gwDB[code];
+                    var pc = pcs[i];
+
+                    // update state per 10 sec
+                    cur.pClose = pc;
+                    gwTable[i].pClose = pc;
+
+                    if (gv.HoldCodes.Contains(code)) {
+                        cur.Earn = Math.Round((((double)cur.pClose - cur.pBuy) / cur.pBuy) * 100, 1);
+                        gwTable[i].Earn = cur.Earn;
+                    }
+
+
+                    // update list per 60 sec
+                    if (gv.CntClock % 6 == 0) {
+                        cur.pcM.Add(pc / cur.pYst);
+                    }
+                }
+
+                gwGrid.Items.Refresh();
+                OnGridCellChanged("", new EventArgs());
+
+
+
+                // check buy at 15:00 ~ 15:20
+                // buy -1% down pc - pYst
+                t = cp.GetTime();
+                
+                if (t.CompareTo("15:00:00") > 0 ) {
+
+                }
+
+                // check sell at 5% up or ....
+
+
+                // check dealed .. update Codes
+
+
+
+                // time delay
+                t = cp.GetTime();
+                var ss = int.Parse(t[6..]);   // 17:30:00
+                var dt = 10 - ss % 10;     // per 10 secs
+                await Task.Delay(1000 * dt);
+            } while (t.CompareTo("15:30:00") < 0);
+        }
+
+        
+
+        private void OnGridCellChanged(object sender, EventArgs e) {
+            gv.CurIndex = gwGrid.Items.IndexOf(gwGrid.CurrentItem);
+            if (gv.CurIndex < 0) gv.CurIndex = 0;
+
+            gv.CurCode = gwTable[gv.CurIndex].Code;
+
+            plotDay.Plot.Clear();
+            plotDay.Plot.AddSignal(gwDB[gv.CurCode].pcD.ToArray());
+            plotDay.Plot.AddSignal(gwDB["A069500"].pcD.ToArray());
+            plotDay.Refresh();
+
+            plotMin.Plot.Clear();
+            plotMin.Plot.AddSignal(gwDB[gv.CurCode].pcM[^390..].ToArray());
+            plotMin.Refresh();
+
+        }
+
+        private void OnLogTextChanged(object sender, TextChangedEventArgs e) {
+            tbLog.ScrollToEnd();
+        }
+    }
+
+    // ============ type struct class ===========================================================
+    public class GridRow {
+        // public int no { get; set; } = 0;
+        public string Code { get; set; } = "-";
+        public string Name { get; set; } = "-";
+        public string Sect { get; set; } = "-";     // Hold, Gwan, Ref
+
+        public double Earn { get; set; } = 0.0;
+        public int pBuy { get; set; } = 0;
+        public int pClose { get; set; } = 0;
+
+        public int pYst { get; set; } = 0;
+        public int pRef { get; set; } = 0;
+
+        public int Qty { get; set; } = 0;
+        public int Jmt { get; set; } = 0;
+
+        // public double Slope { get; set; } = 0.0;
+
+        public string Act { get; set; } = "-";
+    }
+
+
+    public class DB : GridRow {
+        public List<double> pcD { get; set; } = new();
+        public List<double> pcM { get; set; } = new();
+        //public double[] Coef { get; set; } = new double[3];
+
+
+        
+
+    }
+
+    
+
+    public class GV {
+        public List<string> HoldCodes { get; set; } = new();
+        public List<string> RefCodes { get; set; } = new();
+        public List<string> CondCodes { get; set; } = new();
+        public List<string> GwanCodes { get; set; } = new();
+
+        public string CurCode { get; set; } = "";
+        public int CurIndex { get; set; } = 0;
+        public int CntClock { get; set; } = 0;
+
+        public double[] x200 = Enumerable.Range(1, 200).Select(x => (double)x).ToArray();
+        public double[] x60 = Enumerable.Range(141, 60).Select(x => (double)x).ToArray();
+
+
+    }
+
+
+}
+
+
+// tbLog.ScrollToEnd();
+// gwTable[i].recv = "O";
+// gwGrid.Items.Refresh();
+
+//string[] col_header = new string[5] { "CODE", "HnG", "Qty", "evEarn", "BnS" };
+//foreach (string col in col_header) {
+//    DataGridTextColumn txtCol = new DataGridTextColumn();
+//    txtCol.Header = col;
+//    //txtCol.Binding = new Binding("First");
+//    tableHolds.Columns.Add(txtCol);
+//}
+
+//tableHolds.Items.Add("addd");
+//tableHolds.Items.Add(new string[5] { "6", "7", "8", "9", "0" });
+
+//var cond_codes = new List<string>() { "A069500" }.Concat(cp.GetCondCode("good_prop")).ToList();
+//gwan_codes = hold_codes.Concat(cond_codes).Distinct().ToList();
+
+//var xx = Enumerable.Range(1, 60).Select(x=>(double)x).ToArray();
+//var coef = Fit.Polynomial(xx, gwDB[code].pcD[^60..].ToArray(), 2);  // y = a+bx+c^2
+
+//var pc = Convert.ToDouble(df["pc"][^1]);
+//var po = Convert.ToDouble(df["po"][^1]);
+//if (po > pc * 1.010) sect_ = "H";
+
+//var xx = Enumerable.Range(1, 200).Select(x => (double)x).ToArray();
+//var xx = Enumerable.Repeat<double>(-1, 200).ToArray();
+// plotDay.Plot.AddSignalXY(gv.x200, gwDB[gv.CurCode].pcD.ToArray());
+//plotDay.Plot.AddSignal(gwDB[gv.CurCode].pcD.ToArray());
+
+//xx = Enumerable.Range(141, 60).Select(x => (double)x).ToArray();
+// Console.WriteLine($"size = {xx.Length}, {gwDB[gv.CurCode].refCurve.Count} ");
+
+//gwGrid.SelectedIndex = gv.CurIndex;
+//gwGrid.Focus();
+
+//// ---- for test mode -----------------------------------------------------------
+//var lines = ro.ReadLines("D:\\DCT\\DCTcs\\csDCT\\wDCT\\wDCT_v1a\\myBook.csv");
+//gv.HoldCodes = new List<string>();
+//foreach(string vvv in lines) {
+//    var vv = vvv.Split(",");
+//    gv.HoldCodes.Add(vv[0]);
+//}
+//// ---- for test mode -----------------------------------------------------------
