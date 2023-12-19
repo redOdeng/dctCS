@@ -1,0 +1,4 @@
+// StatusBar - 오른쪽 클릭 - StatusBarItem 추가 - name= statusA
+
+// change status text
+statusA.Content = "message";
