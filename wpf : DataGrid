@@ -1,6 +1,6 @@
 // DataGrid Row 속성 class 구성
+// GridRow은 property로 구성할것 : filed로 구성하면 값 전달이 안됨
 public class GridRow {
-    // public int no { get; set; } = 0;
     public string code { get; set; } = "-";
     public string name { get; set; } = "-";
     public string sect { get; set; } = "-";     // Hold, Gwan, Ref
