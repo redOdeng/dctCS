@@ -1,1 +1,5 @@
 // StatusStrip 먼저 추가 --> 이후 TableLayout 설치
+// 아이콘 선택 모양 추가 StatusLabel
+// 크기 모양 조절 : Autosize: False, BorderSides: All, BorderStyie: Sunken
+
+statusA.Text = "aaa";
