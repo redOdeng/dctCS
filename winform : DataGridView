@@ -1,8 +1,15 @@
 // DataSource Binding 3가지
 // 1. GridRow class 구성                    --> 바인딩하면 수정후 Reflesh 필요
 //   -- Dictionary<string, GridRow> or List<GridRow>
+
 // 2. DataTable 구성 Columns.Add, Rows.Addd --> 바인딩하면 수정시 바로 화면 업데이트
+
+
 // 3. gwGrid 다이렉트 구성 ??
+gwGrid.Columns.Add("name", "NAME");
+gwGrid.Rows.Add(code);
+
+
 
 foreach (string code in gv.GwanCodes) {
     gwTable.Add(new() { Code = code });
