@@ -4,20 +4,21 @@
 
 // 2. DataTable 구성 Columns.Add, Rows.Addd --> 바인딩하면 수정시 바로 화면 업데이트
 
-
-// 3. gwGrid 다이렉트 구성 ??
-gwGrid.Columns.Add("name", "NAME");
-gwGrid.Rows.Add(code);
-
-
-
 foreach (string code in gv.GwanCodes) {
     gwTable.Add(new() { Code = code });
 }
 gwGrid.DataSource = gwTable; -- List
 gwGrid.DataSource = gwTable.Values.ToList(); -- Dictionary
 
+// 3. gwGrid 다이렉트 구성 ??
+gwGrid.Columns.Add("name", "NAME");
+gwGrid.Rows.Add(code);
+
 
 // 모양
 // Row/Col HeaderStyle, DefaultCellStyle, RowTemplate.Height
 
+// Column Header Center --> no sortable 적용
+foreach (DataGridViewColumn column in gwGrid.Columns) {
+    column.SortMode = DataGridViewColumnSortMode.NotSortable;
+}
