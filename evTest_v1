@@ -1,0 +1,128 @@
+using System.Reflection.Metadata;
+using System.Reflection.Metadata.Ecma335;
+
+roUtil ro = new();
+Dictionary<string, double[]> gwDB = [];
+
+
+//ro.PrintList(gwans.ToList());
+
+InitGwanDB();
+foreach(var gw in gwDB)
+{
+    var code = gw.Key;
+
+    Console.WriteLine(code);
+}
+
+
+
+
+void InitGwanDB()
+{
+    var gwans = ro.ReadLines($"C:/_HDD/DCT/stock/todaygwan.csv")[0].Split(',')[..10];
+    foreach (var code in gwans)
+    {
+        // Console.WriteLine($"{code}");
+        var df = ro.ReadDictString($"C:/_HDD/DCT/stock/{code}.csv");
+        gwDB.Add(code, df["pc"].ConvertAll(double.Parse).ToArray());
+    }
+
+}
+
+
+// buy  : pc < maB-gapB && vBuy > 0
+// sell : pc > maS+gapS && vSell < 0
+// dna [maDayB, gapB, vDayB, maDayS, gapS, vDayS] 
+// ma, v Day [10, 20, 30, 40, 50, 60]          5 ~ 60
+// gap       [3%, 5%, 7.5%, 10%, 15%, 20%]     0.01 ~ 0.20%
+double TestDNA(double[] pcD, double[] dna)
+{
+    double maDayB = dna[0], gapB = dna[1], vDayB = dna[2];
+    double maDayS = dna[3], gapS = dna[4], vDayS = dna[5];
+
+    double maxDay = dna.Max();
+    double earning = 0.0;
+    for (int i = (int)maxDay; i<pcD.Length; i++)
+    {
+
+    }
+
+
+    return 0.0;
+}
+
+
+
+
+// [ A123456 ]   
+//       0.05%       0.10       
+// 10 0.05 10.3) (10 0.05 10.3) (10 0.05 10.3) (10 0.05 10.3) (10 0.05 10.3)
+// 20
+// 30
+
+
+//var df = ro.ReadDictString($"C:/_HDD/DCT/stock/A069500.csv");
+//var pcD = df["pc"].ConvertAll(double.Parse).ToArray();
+
+//Console.WriteLine($"{pcD[0]} ~ {pcD[1]}");
+//var days = new int[] {10, 20, 40, 60, 90, 120};
+//var gaps = new double[] {0.05, 0.10, 0.15, 0.20, 0.25, 0.30};
+
+//Console.Write($"     ");
+//foreach (var gap in gaps) Console.Write($"{gap}      ");
+//Console.WriteLine();
+//foreach (var day in days)
+//{
+//    Console.Write($" {day,2}   ");
+
+//    foreach (var gap in gaps)
+//    {
+//        Console.Write($"{CalcEarnModel(day, gap),9:F0} ");
+//    }
+//    Console.WriteLine();
+//}
+
+
+//// return : earning, no_buy, no_sell
+//double CalcEarnModel(int day, double gap)
+//{
+//    var n = pcD.Length;
+
+//    int no_buy = 0, no_sell = 0, n_hold = 0;
+//    double ttl_buy = 0, ttl_sell = 0;
+//    double earning = 0.0;
+//    for (int i = day; i<n; i++)
+//    {
+//        var cur = pcD[(i-day)..i].ToList();
+//        var ma = cur.Average();
+//        var pc = pcD[i];
+
+//        // buy 
+//        if (pc < ma*(1-gap))
+//        {
+//            no_buy++;
+//            n_hold += 1;
+//            ttl_buy += pc * 1;
+//        }
+
+//        // sell all
+//        if ((pc > ma*(1+gap)) && n_hold>0)
+//        {
+//            no_sell++;
+
+//            ttl_sell += pc * n_hold;
+//            n_hold = 0;
+
+//        }
+//    }
+
+//    // last hold
+//    ttl_sell += n_hold * pcD[^1];
+
+//    //earning = ttl_sell / ttl_buy;
+//    earning = (ttl_sell - ttl_buy);
+//    if (no_buy < 10) { earning = -9;  };
+
+//    return earning;
+//}
