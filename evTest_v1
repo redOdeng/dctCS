@@ -18,17 +18,20 @@ foreach(var gw in gwDB)
 
 
 
-void InitGwanDB()
-{
-    var gwans = ro.ReadLines($"C:/_HDD/DCT/stock/todaygwan.csv")[0].Split(',')[..10];
-    foreach (var code in gwans)
-    {
-        // Console.WriteLine($"{code}");
-        var df = ro.ReadDictString($"C:/_HDD/DCT/stock/{code}.csv");
-        gwDB.Add(code, df["pc"].ConvertAll(double.Parse).ToArray());
+
+
+void InitGwanDB() {
+    // var gwans = ro.ReadLines($"C:/_HDD/DCT/stock/todaygwan.csv")[0].Split(',')[..10];
+    var gwans = ro.ReadDict($"D:/DCT/DATA/good_base.csv");
+    foreach (var code in gwans) {
+    // Console.WriteLine($"{code}");
+        // var df = ro.ReadDictString($"C:/_HDD/DCT/stock/{code}.csv");
+        var df = ro.ReadDict($"D:/DCT/DATA/stockD/{code.Key}.csv");
+        gwDB.Add(code.Key, df["pc"].ConvertAll(double.Parse).ToArray());
     }
 
 }
+
 
 
 // buy  : pc < maB-gapB && vBuy > 0
