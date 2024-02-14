@@ -1,0 +1,162 @@
+// roLib for cs ver 1.0 
+// update 23.1.27
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.IO;
+
+public class roUtil {
+
+    // for Console ------------------------------------------
+    public void Println(string s) {
+        Console.WriteLine(s);
+    }
+
+    public void Print(string s) {
+        Console.Write(s);
+    }
+
+    public void PrintXY(string s, int x, int y) {
+        try {
+            Console.SetCursorPosition(x, y);
+            Console.Write(s);
+        }
+        catch (ArgumentOutOfRangeException e) {
+            Console.Clear();
+            Console.WriteLine(e.Message);
+        }
+    }
+
+    public void PrintList<T>(List<T> arr) {
+        Console.WriteLine(string.Join(",", arr));
+    }
+
+
+    // for time ----------------------------------------------
+    public static string getDayTime() {
+        // 210908 123000
+        DateTime currentTime = DateTime.Now;
+        string str_t = currentTime.ToString("yyMMdd HHmmss");
+
+        return str_t;
+    }
+
+    public string getTime() {
+        // 09:10:11
+        DateTime currentTime = DateTime.Now;
+        string str_t = currentTime.ToString("HH:mm:ss");
+
+        return str_t;
+    }
+
+
+    // for File (return string basically) ----------------------------------------------
+    // ReadList = List<string>
+    // ReadDict = Dictionary<string, List<string>>
+    // ReadRov
+
+    public List<string> ReadList(string path) {
+        var lines = File.ReadAllLines(path);
+        return lines.ToList();
+    }
+
+
+    // ReadDict --- only String
+    // row : key, v1, v2, ...
+    //public Dictionary<string, string> ReadDict(string path) {
+    //    var db = new Dictionary<string, string>();
+
+    //    var lines = File.ReadAllLines(path);
+    //    int N = lines.Length;
+
+    //    for (int i = 0; i < N; i++) {
+    //        var row = lines[i].Split(",");
+    //        var key = row[0];
+    //        var v = row[1];
+
+    //        db.Add(key, v);
+    //    }
+
+    //    return db;
+    //}
+
+    public Dictionary<string, List<string>> ReadDict(string path) {
+        Dictionary<string, List<string>> db = new();
+        var lines = File.ReadAllLines(path);
+        int N = lines.Length;
+        
+        for (int i = 0; i < N; i++) {
+            var row = lines[i].Split(",");
+            var key = row[0];
+            var v = row[1..].ToList();
+
+            db.Add(key, v);
+        }
+
+        return db;
+    }
+
+
+    // for rov (red Odeng csv)
+    // [tag] a,b1/b2/b3,c
+    // # comment line
+    // return dict tag List<string> {a, b1/b2/b3, c}
+    public Dictionary<string, List<string>> ReadRov(string filename) {
+        Dictionary<string, List<string>> rov = new();
+
+        var lines = ReadList(filename);
+        Console.WriteLine($"{lines.Count} {lines[0]} {lines[^1]}");
+
+        foreach (string line in lines) {
+            if (line == "") continue;
+            Console.WriteLine($"{line}");
+
+            if (line[0] == '[') {
+                var values = line.Split("] ");
+                var tag = values[0][1..].ToString();
+                var items = values[1].Split(",").ToList();
+
+                rov.Add(tag, items);
+            }
+
+            // rov.Add(line[0..5], lines.ToList());
+        }
+
+        return rov;
+    }
+
+
+
+
+
+
+    public void SaveListCSV(string fileName, List<string> saveData) {
+        FileStream fs = File.Create(fileName);
+        StreamWriter sw = new(fs);
+
+        string line = string.Join(",", saveData);
+        sw.WriteLine(line);
+        
+        sw.Close();
+    }
+
+    public void SaveDictToCSV(string fileName, Dictionary<string, string[]> dict) {
+        // dict = string type
+        using (var writer = new StreamWriter(fileName)) {
+            foreach (var pair in dict) {
+                writer.WriteLine($"{pair.Key},{string.Join(",", pair.Value)}");
+            }
+        }
+    }
+
+    public void SaveDictToCSV(string fileName, Dictionary<string, string> dict) {
+        // dict = string type
+        using (var writer = new StreamWriter(fileName)) {
+            foreach (var pair in dict) {
+                writer.WriteLine($"{pair.Key},{string.Join(",", pair.Value)}");
+            }
+        }
+    }
+
+
+}
