@@ -7,31 +7,46 @@ Dictionary<string, double[]> gwDB = [];
 
 //ro.PrintList(gwans.ToList());
 
-InitGwanDB();
-foreach(var gw in gwDB)
+
+void InitGwanDB()
 {
-    var code = gw.Key;
+    var DAYS = new int[] { 10, 20, 30, 40, 60 };
+    var GAPS = new int[] { 3, 5, 10, 15, 20 };
 
-    Console.WriteLine(code);
-}
+    string path = "C:/_HDD";
+    var gwans = ro.ReadDict($"{path}/DCT/DATA/good_base.csv");
+    Console.WriteLine("[] Init Gwans - data recv and pre-calc."  );
+    foreach (var gwan in gwans)
+    {
+        string code = gwan.Key;
+        gwDB[code] = [];
 
+        Console.WriteLine($"{code}");
 
+        var df = ro.ReadDict($"{path}/DCT/DATA/stockD/{code}.csv");
+        //gwDB[code].Add("pcD", df["pc"].ConvertAll(double.Parse).ToList());
+        gwDB[code]["pcD"] = df["pc"].ConvertAll(double.Parse);
 
+        // pre-calc ma & v
+        int n = gwDB[code]["pcD"].Count;
+        foreach (var day in DAYS)
+        {
+            gwDB[code][$"ma{day}"] = new List<double>(new double[n]);
+            gwDB[code][$"v{day}"] = new List<double>(new double[n]);
+            var xx = Generate.LinearSpaced(day, 0.0, 1.0);
 
+            for (int i=day; i<n; i++) 
+            {              
+                gwDB[code][$"ma{day}"][i] = gwDB[code]["pcD"][(i-day)..i].Average();
+                gwDB[code][$"v{day}"][i] = MathNet.Numerics.Fit.Line(xx, gwDB[code]["pcD"][(i - day)..i])[1];
 
-
-void InitGwanDB() {
-    // var gwans = ro.ReadLines($"C:/_HDD/DCT/stock/todaygwan.csv")[0].Split(',')[..10];
-    var gwans = ro.ReadDict($"D:/DCT/DATA/good_base.csv");
-    foreach (var code in gwans) {
-    // Console.WriteLine($"{code}");
-        // var df = ro.ReadDictString($"C:/_HDD/DCT/stock/{code}.csv");
-        var df = ro.ReadDict($"D:/DCT/DATA/stockD/{code.Key}.csv");
-        gwDB.Add(code.Key, df["pc"].ConvertAll(double.Parse).ToArray());
+            }
+        }
+        
     }
 
-}
 
+}
 
 
 // buy  : pc < maB-gapB && vBuy > 0
