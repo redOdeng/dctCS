@@ -13,7 +13,7 @@ gwGrid.DataSource = gwTable.Values.ToList(); -- Dictionary
 // 3. gwGrid 다이렉트 구성 ??
 gwGrid.Columns.Add("name", "NAME");
 gwGrid.Rows.Add(code);
-
+gwGrid.Rows[0].Cells["gubun"].Value = "X";  gwGrid.Rows[0].Cells[1].Value = "X";
 
 // 모양
 // Row/Col HeaderStyle, DefaultCellStyle, RowTemplate.Height
