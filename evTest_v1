@@ -1,5 +1,7 @@
 using MathNet.Numerics;
+using System.IO;
 using System.Linq;
+using System.Net.WebSockets;
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 using System.Runtime.InteropServices;
@@ -7,115 +9,165 @@ using System.Runtime.InteropServices;
 roUtil ro = new();
 Dictionary<string, Dictionary<string, List<double>>> gwDB = [];
 
-int[] DAYS = [ 10, 20, 30, 40, 60 ];
+int[] DAYS = [ 5, 10, 20, 40, 60 ];
 int[] GAPS = [ 3, 5, 10, 15, 20 ];
 
+
 InitGwanDB();
+DoTestModel_01();
 
-DoTestDNA();
+// =======================================================================================
+
+void DoTestModel_01() {
+    // UpI [0~10], v20D [+,-], v5D [+,-]
 
 
+
+}
 
 
 void InitGwanDB()
 {
-    string path = "C:/_HDD";
-    var gwans = ro.ReadDict($"{path}/DCT/DATA/good_base.csv");
-    Console.WriteLine("[] Init Gwans - data recv and pre-calc."  );
-    var gwan_codes = gwans.Keys.ToArray()[..10];
-    foreach (var code in gwan_codes)
-    {
-        // string code = gwan.Key;
+    string PATH = "C:/_HDD";
+    string[] gwan_codes = ["A069500", "A000270", "A360750"];
+
+    Console.WriteLine($"[] Init gwan properties.");
+    foreach (var code in gwan_codes) {
         gwDB[code] = [];
+        var cur = gwDB[code];
 
-        Console.Write($"{code} : ");
+        // pcD norm
+        var df = ro.ReadDict($"{PATH}/DCT/DATA/stockD/{code}.csv");
+        cur["pcD"] = df["pc"].ConvertAll(double.Parse);
 
-        var df = ro.ReadDict($"{path}/DCT/DATA/stockD/{code}.csv");
-        //gwDB[code].Add("pcD", df["pc"].ConvertAll(double.Parse).ToList());
-        gwDB[code]["pcD"] = df["pc"].ConvertAll(double.Parse);
+        int N = cur["pcD"].Count;
+        var pRef = cur["pcD"].Average();
+        for ( var i = 0; i<N; i++ ) cur["pcD"][i] /= pRef;
 
-        // pre-calc ma & v
-        int n = gwDB[code]["pcD"].Count;
-        foreach (var day in DAYS)
-        {
-            gwDB[code][$"ma{day}"] = new List<double>(new double[n]);
-            gwDB[code][$"v{day}"] = new List<double>(new double[n]);
+        // ma, v
+        foreach (var day in DAYS) {
+            cur[$"ma{day}"] = new List<double>(new double[N]);
+            cur[$"v{day}"] = new List<double>(new double[N]);
+
             var xx = Generate.LinearSpaced(day, 0.0, 1.0);
 
-            for (int i=day; i<n; i++) 
-            {              
-                gwDB[code][$"ma{day}"][i] = gwDB[code]["pcD"][(i-day)..i].Average();
-                gwDB[code][$"v{day}"][i] = MathNet.Numerics.Fit.Line(xx, gwDB[code]["pcD"][(i - day)..i].ToArray()).B;
-                
-            }
-            Console.Write($"ma{day} v{day} ");
-        }
-        Console.WriteLine("");
-    }
-}
-
-void DoTestDNA()
-{
-    var gwan_codes = gwDB.Keys.ToArray();
-    foreach (var code in gwan_codes)
-    {
-        // test dna [maDayB, gapB, vDayB, maDayS, gapS, vDayS] 
-        foreach (var maDayB in DAYS)
-        {
-            foreach (var gapB in GAPS)
-            {
-                foreach (var vDayB in DAYS)
-                {
-                    foreach (var maDayS in DAYS)
-                    {
-                        foreach (var gapS in GAPS)
-                        {
-                            foreach (var vDayS in DAYS)
-                            {
-                                int[] dna = [maDayB, gapB, vDayB, maDayS, gapS, vDayS];
-                                var earn = TestDNA(gwDB[code], dna);
-                            }
-                        }
-                    }
-                }
+            for (int i = day; i < N; i++) {
+                cur[$"ma{day}"][i] = cur["pcD"][(i - day)..i].Average();
+                cur[$"v{day}"][i] = Fit.Line(xx, [.. cur["pcD"][(i - day)..i]]).B;
             }
         }
-        
-        Console.WriteLine(code);
-    }
 
-}
-
-
-// buy  : pc < maB-gapB && vBuy > 0
-// sell : pc > maS+gapS && vSell < 0
-
-// ma, v Day [10, 20, 30, 40, 50, 60]          5 ~ 60
-// gap       [3%, 5%, 10%, 15%, 20%]     0.01 ~ 0.20%
-double TestDNA(Dictionary<string, List<double>>cur, int[] dna)
-{
-    int maDayB = dna[0], gapB = dna[1], vDayB = dna[2];
-    int maDayS = dna[3], gapS = dna[4], vDayS = dna[5];
-
-    int maxDay = (new int[] {maDayB, vDayB, maDayS, vDayS}).Max();
-    double ttl_earn = 0.0;
-    double ttl_buy = 0.0, ttl_sell = 0.0, cur_buy = 0.0, cur_sell = 0.0;
-    int n_hold = 0;
-    for (int i=maxDay; i < cur["pcD"].Count; i++)
-    {
-        // check buy
-        if (cur["pcD"][i] < cur[$"ma{maDayB}"][i]*(1.0-gapB*0.01) && cur[$"v{vDayB}"][i] > 0) {
-            cur_buy += cur["pcD"][i];
-            n_hold += 1;
+        // UpI
+        cur["UpI"] = new List<double>(new double[N]);
+        foreach (var day in DAYS) {
+            for (int i = day; i < N; i++) {
+                if (cur["pcD"][i] > cur[$"ma{day}"][i]) cur["UpI"][i] += 1.0;
+                if (cur[$"v{day}"][i] > 0.0) cur["UpI"][i] += 1.0;
+            }
         }
 
-        // check sell
-
+        Console.WriteLine($" {code} : ma20 {cur["ma20"][^1]:F2}  v20 {cur["v20"][^1]:F2}  UpI {cur["UpI"][^1]:F0} ");
     }
 
-
-    return ttl_earn;
 }
+
+
+
+
+// int n = gwDB[code]["pcD"].Count;
+//    var cnt = 0;
+//    foreach (var day in DAYS)
+//    {
+//        gwDB[code][$"ma{day}"] = new List<double>(new double[n]);
+//        gwDB[code][$"v{day}"] = new List<double>(new double[n]);
+//        var xx = Generate.LinearSpaced(day, 0.0, 1.0);
+
+//        for (int i=day; i<n; i++) 
+//        {              
+//            gwDB[code][$"ma{day}"][i] = gwDB[code]["pcD"][(i-day)..i].Average();
+//            gwDB[code][$"v{day}"][i] = Fit.Line(xx, gwDB[code]["pcD"][(i - day)..i].ToArray()).B;
+
+
+//            if (day == 60)
+//            {
+//                if (gwDB[code]["pcD"][i] > gwDB[code][$"ma{day}"][i]) cnt++;
+//            }
+
+//        }
+//        Console.Write($"ma{day} v{day} ");
+//    }
+//    Console.WriteLine($"--> {cnt/600.0*100:F2}");
+//}
+
+// var gwans = ro.ReadDict($"{path}/DCT/DATA/good_base.csv");
+// Console.WriteLine("[] Init Gwans - data recv and pre-calc."  );
+
+//void DoTestDNA()
+//{
+//    var gwan_codes = gwDB.Keys.ToArray();
+//    foreach (var code in gwan_codes)
+//    {
+//        // test dna [maDayB, gapB, vDayB, maDayS, gapS, vDayS] 
+//        foreach (var maDayB in DAYS)
+//        {
+//            foreach (var gapB in GAPS)
+//            {
+//                foreach (var vDayB in DAYS)
+//                {
+//                    foreach (var maDayS in DAYS)
+//                    {
+//                        foreach (var gapS in GAPS)
+//                        {
+//                            foreach (var vDayS in DAYS)
+//                            {
+//                                int[] dna = [maDayB, gapB, vDayB, maDayS, gapS, vDayS];
+//                                var earn = TestDNA(gwDB[code], dna);
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//        }
+
+//        Console.WriteLine(code);
+//    }
+
+//}
+
+
+//// buy  : pc < maB-gapB && vBuy > 0
+//// sell : pc > maS+gapS && vSell < 0
+
+//// ma, v Day [10, 20, 30, 40, 50, 60]          5 ~ 60
+//// gap       [3%, 5%, 10%, 15%, 20%]     0.01 ~ 0.20%
+//double TestDNA(Dictionary<string, List<double>>cur, int[] dna)
+//{
+//    int maDayB = dna[0], gapB = dna[1], vDayB = dna[2];
+//    int maDayS = dna[3], gapS = dna[4], vDayS = dna[5];
+
+//    int maxDay = (new int[] {maDayB, vDayB, maDayS, vDayS}).Max();
+//    double ttl_earn = 0.0;
+//    double ttl_buy = 0.0, ttl_sell = 0.0, cur_buy = 0.0, cur_sell = 0.0;
+//    int n_hold = 0;
+//    for (int i=maxDay; i < cur["pcD"].Count; i++)
+//    {
+//        // check buy
+//        if (cur["pcD"][i] < cur[$"ma{maDayB}"][i]*(1.0-gapB*0.01) && cur[$"v{vDayB}"][i] > 0) {
+//            cur_buy += cur["pcD"][i];
+//            n_hold += 1;
+//        }
+
+//        // check sell
+//        if (n_hold>0 && cur["pcD"][i] < cur[$"ma{maDayS}"][i] * (1.0 + gapS * 0.01) && cur[$"v{vDayS}"][i] < 0)
+//        {
+//            ttl_sell += cur["pcD"][i];
+//            n_hold -= 1;
+//        }
+//    }
+
+
+//    return ttl_earn;
+//}
 
 
 
@@ -191,4 +243,3 @@ double TestDNA(Dictionary<string, List<double>>cur, int[] dna)
 
 //    return earning;
 //}
-
