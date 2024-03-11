@@ -9,21 +9,26 @@ using System.Runtime.InteropServices;
 roUtil ro = new();
 Dictionary<string, Dictionary<string, List<double>>> gwDB = [];
 
+
 int[] DAYS = [ 5, 10, 20, 40, 60 ];
 int[] GAPS = [ 3, 5, 10, 15, 20 ];
 
 
 InitGwanDB();
-DoTestModel_01();
+Model_DNA1 model = new();
+
+string code = "A069500";
+for (int i=0; i<10; i++) {
+    var dna = model.MakeNewDNA();
+
+    var k = model.GetState(gwDB[code], 100, 8);
+    Console.WriteLine($"{string.Join(",", dna)} - {k} ");
+   
+
+}
 
 // =======================================================================================
 
-void DoTestModel_01() {
-    // UpI [0~10], v20D [+,-], v5D [+,-]
-
-
-
-}
 
 
 void InitGwanDB()
@@ -44,15 +49,17 @@ void InitGwanDB()
         var pRef = cur["pcD"].Average();
         for ( var i = 0; i<N; i++ ) cur["pcD"][i] /= pRef;
 
-        // ma, v
+        // ma, v, sep
         foreach (var day in DAYS) {
             cur[$"ma{day}"] = new List<double>(new double[N]);
+            cur[$"sep{day}"] = new List<double>(new double[N]);
             cur[$"v{day}"] = new List<double>(new double[N]);
 
             var xx = Generate.LinearSpaced(day, 0.0, 1.0);
 
             for (int i = day; i < N; i++) {
                 cur[$"ma{day}"][i] = cur["pcD"][(i - day)..i].Average();
+                cur[$"sep{day}"][i] = (cur["pcD"][i] - cur[$"ma{day}"][i]) / cur["pcD"][i] * 100.0;
                 cur[$"v{day}"][i] = Fit.Line(xx, [.. cur["pcD"][(i - day)..i]]).B;
             }
         }
@@ -71,7 +78,49 @@ void InitGwanDB()
 
 }
 
+public class Model_DNA1 {
+    
 
+    //string[] GENE_U = ["U0+", "U1+", "U2+", "U3+", "U4+", "U5+", "U6+", "U7+", "U8+", "U9+", "U10+",
+    //                   "U0-", "U1-", "U2-", "U3-", "U4-", "U5-", "U6-", "U7-", "U8-", "U9-", "U10-"];       // U5+=5~  U5-=~5
+    //string[] GENE_S = ["sep5+", "sep10+", "sep20+", "sep40+", "sep60+", "sep5-", "sep10-", "sep20-", "sep40-", "sep60-"];
+    //string[] GENE_V = ["v5+", "v10+", "v20+", "v40+", "v60+", "v5-", "v10-", "v20-", "v40-", "v60-"];
+
+
+    // DNA = B 30 genes / 11 genes pool : UpI [1]x2(+/-), maD-->sep [5]x2(+/-), vD [5]x2(+/-)
+    // make DNA (8 genes) =  B upI [2: 6+, 2-] + sep [3: 5+ 10- 20+] + vD [3: 3] = List<string>
+
+    public List<int> MakeNewDNA() {
+        Random rand = new Random();
+
+        List<int> new_dna = [];
+
+        var r = rand.Next(10);  new_dna.Add(r);
+        r = rand.Next(11, 21);  new_dna.Add(r);
+        for (int i = 0; i < 3; i++) { r = rand.Next(0, 9); new_dna.Add(100+r); }
+        for (int i = 0; i < 3; i++) { r = rand.Next(0, 9); new_dna.Add(200+r); }
+
+        return new_dna;
+    }
+
+    public double GetState(Dictionary<string, List<double>> cur, int x, int gene) { 
+        double state = 0;
+
+        if (gene <= 21) {
+            state = cur["UpI"][x];
+        }
+
+
+
+
+        return state;
+    }
+
+    
+
+
+
+}
 
 
 // int n = gwDB[code]["pcD"].Count;
